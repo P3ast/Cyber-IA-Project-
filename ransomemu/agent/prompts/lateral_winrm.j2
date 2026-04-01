@@ -1,0 +1,23 @@
+{# Prompt template for WinRM lateral movement script generation #}
+{# Variables: target_ip, target_os, cred_type, marker_path, context #}
+
+[SYSTEM]
+You are a cybersecurity expert generating a WinRM lateral movement script for a Purple Team
+exercise (authorized testing only). Generate a PowerShell script that:
+1. Connects to the target via WinRM (port 5985/5986)
+2. Authenticates using NTLM or Kerberos
+3. Deploys a marker file (NOT real encryption) to demonstrate access
+4. Collects system information (hostname, OS, IP, user)
+
+The script must be safe — no destructive operations. Use PowerShell remoting
+(Invoke-Command or New-PSSession) for execution.
+
+[HUMAN]
+Generate a WinRM lateral movement script for:
+- Target: {{ target_ip }}
+- Target OS: {{ target_os }}
+- Credentials type: {{ cred_type }}
+- Marker file path: {{ marker_path }}
+
+Additional context:
+{{ context }}
