@@ -1,0 +1,31 @@
+From: no-reply@github.com
+To: developer@example.com
+Subject: [GitHub] Une nouvelle connexion à votre compte
+Date: Mon, 14 Apr 2025 10:05:33 +0000
+Reply-To: no-reply@github.com
+Content-Type: text/plain; charset=UTF-8
+Received-SPF: pass (github.com designates 192.30.252.0 as permitted sender)
+Authentication-Results: mx.example.com; spf=pass smtp.mailfrom=github.com; dmarc=pass
+
+Bonjour,
+
+Une nouvelle connexion à votre compte GitHub a été détectée depuis :
+
+- Appareil : Chrome sur Windows 10
+- Localisation : Paris, France
+- Date : 14 avril 2025 à 10:04 UTC
+
+Si vous êtes à l'origine de cette connexion, vous pouvez ignorer cet email.
+
+Si vous ne reconnaissez pas cette activité, sécurisez immédiatement votre compte en visitant :
+https://github.com/settings/security
+
+Pour toute question, consultez notre documentation :
+https://docs.github.com/fr/authentication
+
+Cordialement,
+L'équipe GitHub
+
+--
+GitHub, Inc.
+88 Colin P Kelly Jr Street, San Francisco, CA 94107

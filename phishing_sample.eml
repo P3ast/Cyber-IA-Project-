@@ -1,0 +1,44 @@
+From: security-alert@paypa1.com.malicious.xyz
+To: victim@example.com
+Subject: URGENT: Votre compte PayPal a été suspendu - Action requise immédiatement
+Date: Mon, 14 Apr 2025 09:23:11 +0000
+Reply-To: collect@harvester123.top
+Content-Type: text/html; charset=UTF-8
+Received-SPF: fail (domain does not designate 192.168.1.1 as permitted sender)
+Authentication-Results: mx.example.com; spf=fail; dmarc=fail
+
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif;">
+  <div style="max-width: 600px; margin: auto;">
+    <img src="https://paypa1.com.malicious.xyz/fake-logo.png" alt="PayPal" width="150"/>
+    
+    <h2 style="color: #003087;">Votre compte a été suspendu</h2>
+    
+    <p>Cher client,</p>
+    
+    <p><strong>URGENT :</strong> Nous avons détecté une activité suspecte sur votre compte PayPal.
+    Votre compte a été <strong>temporairement bloqué</strong> pour votre sécurité.</p>
+    
+    <p>Vous devez <strong>vérifier votre identité immédiatement</strong> pour débloquer votre compte 
+    et éviter une suspension permanente.</p>
+    
+    <p style="text-align: center; margin: 30px 0;">
+      <a href="http://192.168.100.50/phishing/paypal/login.php" 
+         style="background-color: #003087; color: white; padding: 15px 30px; text-decoration: none;">
+        Vérifier mon compte maintenant
+      </a>
+    </p>
+    
+    <p>Cette action doit être effectuée dans les <strong>24 heures</strong> sinon votre compte 
+    sera définitivement fermé et vos fonds seront bloqués.</p>
+    
+    <p>Cliquez ici pour accéder à votre espace sécurisé :<br/>
+    <a href="https://paypal.com.verify-account.xyz/secure/login">
+      https://paypal.com.verify-account.xyz/secure/login
+    </a></p>
+    
+    <p>Cordialement,<br/>L'équipe de sécurité PayPal</p>
+  </div>
+</body>
+</html>
