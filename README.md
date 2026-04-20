@@ -1,96 +1,101 @@
-# 🔒 RansomEmu
+# Agent IA - Détection de Phishing
 
-> Framework d'émulation de ransomware intégré à **Exegol**, conçu pour tester la résilience des réseaux face à la propagation automatisée.
+Agent de détection de phishing combinant **heuristiques ML** et **LLM local** (Ollama/Mistral).
 
-⚠️ **Usage autorisé uniquement** — Purple Team / Red Team avec autorisation écrite.
+## Stack technique
+- Python 3.10+
+- Ollama (LLM local, modèle Mistral)
+- LangChain (orchestration de l'agent)
+- python-whois (vérification âge domaine)
+- Exegol (environnement isolé recommandé)
 
-## ✨ Fonctionnalités
+---
 
-- **Reconnaissance automatisée** — BloodHound CE API, scan réseau, énumération AD
-- **Agent LLM** — Analyse ML des configurations via Llama 3.1 (Ollama) + LangChain
-- **Mouvement latéral** — SMB, WinRM, WMI via Impacket (adaptés dynamiquement par le LLM)
-- **Simulation crypto** — Marquage de fichiers (aucun chiffrement réel)
-- **Propagation contrôlée** — BFS/DFS avec scope guard et kill-switch
-- **Reporting** — Timeline JSON/HTML des actions
+## Installation
 
-## 🚀 Quick Start
-
-### Avec Docker (recommandé)
-
+### 1. Cloner et installer les dépendances
 ```bash
-# Cloner le repo
-git clone <repo-url> && cd ransomemu
-
-# Copier la config
-cp .env.example .env
-
-# Lancer
-docker compose -f docker/docker-compose.yml up -d
-
-# Utiliser
-docker compose -f docker/docker-compose.yml exec ransomemu ransomemu --help
+git clone <repo>
+cd phishing-agent
+pip install -r requirements.txt
 ```
 
-### Avec Exegol
-
+### 2. Installer Ollama + télécharger Mistral
 ```bash
-# Copier dans my-resources
-cp -r . ~/.exegol/my-resources/ransomemu/
-cp exegol-resources/setup/load_user_setup.sh ~/.exegol/my-resources/setup/
-
-# Redémarrer le container Exegol
-exegol start <container>
-
-# Utiliser
-ransomemu --help
+# Installer Ollama : https://ollama.com/download
+ollama pull mistral
+ollama serve   # Lance le serveur LLM local
 ```
 
-### Installation locale (dev)
+---
 
+## Utilisation
+
+### Analyser un email unique
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # ou .venv\Scripts\activate sur Windows
-pip install -e ".[dev]"
-ransomemu --help
+python agent.py samples/phishing_sample.eml
+python agent.py samples/legit_sample.eml
 ```
 
-## 📋 Commandes
-
-| Commande | Description |
-|----------|-------------|
-| `ransomemu scan` | Reconnaissance réseau et AD |
-| `ransomemu plan` | Plan de propagation via LLM |
-| `ransomemu run` | Simulation complète |
-| `ransomemu report` | Génération du rapport |
-| `ransomemu rollback` | Suppression des marqueurs |
-
-## ⚙️ Configuration
-
-Éditer `config/default.yml` ou utiliser les variables d'environnement (voir `.env.example`).
-
-Options globales : `--dry-run`, `--scope`, `--model`, `--verbose`
-
-## 🧪 Tests
-
+### Analyser un dossier d'emails
 ```bash
-pytest
+python batch_analyzer.py samples/
 ```
 
-## 🏗️ Architecture
+---
+
+## Architecture
 
 ```
-ransomemu/
-├── cli.py              # Point d'entrée Click
-├── core/               # Config, logging, sécurité
-├── agent/              # LLM (Ollama/LangChain)
-├── modules/
-│   ├── recon/          # BloodHound, scan réseau
-│   ├── lateral/        # SMB, WinRM, WMI
-│   ├── crypto/         # Simulation marquage
-│   └── propagation/    # Engine BFS/DFS
-└── reporting/          # JSON/HTML reports
+Email brut (.eml)
+      │
+      ▼
+email_parser.py       → extrait sujet, corps, en-têtes, pièces jointes
+      │
+      ▼
+feature_extractor.py  → SPF/DMARC, URLs, keywords, âge domaine
+      │
+      ├──► Score ML (heuristiques, 40%)
+      │
+      └──► agent.py → LLM Ollama/Mistral (60%)
+                │
+                ▼
+           report.py → Score final + verdict + recommandation
 ```
 
-## 📜 Licence
+## Scores et verdicts
 
-MIT — Usage responsable uniquement.
+| Score | Verdict  | Signification                        |
+|-------|----------|--------------------------------------|
+| 0-30  | LEGITIME | Email probablement sûr               |
+| 31-60 | SUSPECT  | À vérifier manuellement              |
+| 61-100| PHISHING | Email malveillant, à bloquer         |
+
+## Features analysées
+
+| Feature              | Description                                     |
+|----------------------|-------------------------------------------------|
+| SPF                  | Vérification du serveur d'envoi autorisé        |
+| DMARC                | Politique d'authentification du domaine         |
+| Reply-To mismatch    | Réponse vers un domaine différent               |
+| URLs suspectes       | TLD malveillants, IP dans l'URL, usurpation     |
+| Mots-clés urgents    | "urgent", "bloqué", "vérifiez maintenant"...    |
+| Âge du domaine       | Domaine créé récemment = suspect                |
+| Pièces jointes       | Présence de fichiers joints                     |
+| Analyse LLM          | Ton, contenu, cohérence de l'email              |
+
+## Structure du projet
+
+```
+phishing-agent/
+├── agent.py             # Agent principal
+├── email_parser.py      # Parser .eml
+├── feature_extractor.py # Extraction des indicateurs
+├── report.py            # Génération des rapports
+├── batch_analyzer.py    # Analyse en lot
+├── requirements.txt
+├── README.md
+└── samples/
+    ├── phishing_sample.eml
+    └── legit_sample.eml
+```
