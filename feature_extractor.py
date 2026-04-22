@@ -1,24 +1,22 @@
 import re
+import json
+import os
+import concurrent.futures
+import dns.resolver
 from urllib.parse import urlparse
 from datetime import datetime
 import whois
 
+config_path = os.path.join(os.path.dirname(__file__), "config.json")
+try:
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+except Exception:
+    config = {}
 
-URGENT_KEYWORDS = [
-    "urgent", "immédiat", "compte bloqué", "vérifiez maintenant",
-    "cliquez ici", "mot de passe expiré", "action requise",
-    "suspended", "verify your account", "click here", "limited time",
-    "vous avez gagné", "félicitations", "winner", "congratulations",
-    "invoice", "facture impayée", "paiement requis"
-]
-
-SUSPICIOUS_TLDS = [".xyz", ".top", ".click", ".gq", ".tk", ".ml", ".cf"]
-
-TRUSTED_DOMAINS = [
-    "google.com", "microsoft.com", "apple.com", "amazon.com",
-    "paypal.com", "facebook.com", "twitter.com", "github.com",
-    "orange.fr", "sfr.fr", "laposte.net", "free.fr"
-]
+URGENT_KEYWORDS = config.get("URGENT_KEYWORDS", [])
+SUSPICIOUS_TLDS = config.get("SUSPICIOUS_TLDS", [])
+TRUSTED_DOMAINS = config.get("TRUSTED_DOMAINS", [])
 
 class FeatureExtractor:
     def extract(self, email_data: dict) -> dict:
@@ -31,8 +29,8 @@ class FeatureExtractor:
 
         features = {
             # --- En-têtes ---
-            "spf_pass": self._check_spf(headers),
-            "dmarc_pass": self._check_dmarc(headers),
+            "spf_pass": self._check_spf(headers, sender_domain),
+            "dmarc_pass": self._check_dmarc(headers, sender_domain),
             "reply_to_mismatch": self._reply_to_mismatch(email_data),
             "sender_domain": sender_domain,
 
@@ -67,14 +65,34 @@ class FeatureExtractor:
         match = re.search(r'@([\w.\-]+)', email_address)
         return match.group(1).lower() if match else ""
 
-    def _check_spf(self, headers: dict) -> bool:
+    def _check_spf(self, headers: dict, sender_domain: str) -> bool:
         received_spf = headers.get("Received-SPF", "").lower()
         auth_results = headers.get("Authentication-Results", "").lower()
-        return "pass" in received_spf or "spf=pass" in auth_results
+        if "pass" in received_spf or "spf=pass" in auth_results:
+            return True
+        if sender_domain:
+            try:
+                answers = dns.resolver.resolve(sender_domain, 'TXT')
+                for rdata in answers:
+                    if 'v=spf1' in rdata.to_text():
+                        return True
+            except Exception:
+                pass
+        return False
 
-    def _check_dmarc(self, headers: dict) -> bool:
+    def _check_dmarc(self, headers: dict, sender_domain: str) -> bool:
         auth_results = headers.get("Authentication-Results", "").lower()
-        return "dmarc=pass" in auth_results
+        if "dmarc=pass" in auth_results:
+            return True
+        if sender_domain:
+            try:
+                answers = dns.resolver.resolve(f"_dmarc.{sender_domain}", 'TXT')
+                for rdata in answers:
+                    if 'v=DMARC1' in rdata.to_text():
+                        return True
+            except Exception:
+                pass
+        return False
 
     def _reply_to_mismatch(self, email_data: dict) -> bool:
         from_domain = self._extract_domain(email_data.get("from", ""))
@@ -120,11 +138,17 @@ class FeatureExtractor:
         return email_data.get("content_type", "").startswith("text/html")
 
     def _get_domain_age(self, domain: str) -> int:
-        """Retourne l'âge du domaine en jours. -1 si erreur."""
+        """Retourne l'âge du domaine en jours avec timeout de 5s. -1 si erreur."""
         if not domain or domain in TRUSTED_DOMAINS:
             return 9999  # Domaines connus = très ancien
+            
+        def fetch_whois():
+            return whois.whois(domain)
+
         try:
-            w = whois.whois(domain)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(fetch_whois)
+                w = future.result(timeout=5)
             creation = w.creation_date
             if isinstance(creation, list):
                 creation = creation[0]

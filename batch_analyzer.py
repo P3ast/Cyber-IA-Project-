@@ -1,10 +1,21 @@
 import os
 import sys
 import json
+import concurrent.futures
 from datetime import datetime
+from tqdm import tqdm
 from agent import PhishingAgent
 from report import generate_report, RED, YELLOW, GREEN, BOLD, RESET
 
+def _process_file(filepath: str, filename: str, agent: PhishingAgent) -> dict:
+    try:
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            raw = f.read()
+        result = agent.analyze(raw)
+        result["filename"] = filename
+        return result
+    except Exception as e:
+        return {"filename": filename, "error": str(e)}
 
 def analyze_folder(folder_path: str):
     agent = PhishingAgent()
@@ -18,19 +29,17 @@ def analyze_folder(folder_path: str):
 
     print(f"\n{BOLD}Analyse de {len(eml_files)} email(s)...{RESET}\n")
 
-    for filename in eml_files:
-        filepath = os.path.join(folder_path, filename)
-        print(f"  → Traitement : {filename}")
-
-        try:
-            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-                raw = f.read()
-            result = agent.analyze(raw)
-            result["filename"] = filename
-            results.append(result)
-        except Exception as e:
-            print(f"    Erreur : {e}")
-            results.append({"filename": filename, "error": str(e)})
+    # Utilisation de ThreadPoolExecutor pour paralléliser
+    max_workers = min(4, len(eml_files))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(_process_file, os.path.join(folder_path, filename), filename, agent): filename
+            for filename in eml_files
+        }
+        
+        # tqdm pour la barre de progression
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(eml_files), desc="Progression"):
+            results.append(future.result())
 
     # Rapport global
     _print_summary(results)

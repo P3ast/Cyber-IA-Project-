@@ -69,8 +69,22 @@ def _decode_part(part) -> str:
 
 
 def _strip_html(html: str) -> str:
-    """Supprime les balises HTML pour obtenir le texte brut."""
-    import re
-    clean = re.sub(r'<[^>]+>', ' ', html)
-    clean = re.sub(r'\s+', ' ', clean)
-    return clean.strip()
+    """Supprime les balises HTML pour obtenir le texte brut proprement."""
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, "html.parser")
+        # Supprimer le contenu des balises invisibles
+        for element in soup(["script", "style", "head", "title", "meta", "[document]"]):
+            element.decompose()
+        # Extraire le texte
+        clean = soup.get_text(separator=' ', strip=True)
+        # Nettoyer les espaces multiples restants
+        import re
+        clean = re.sub(r'\s+', ' ', clean)
+        return clean.strip()
+    except ImportError:
+        # Fallback de sécurité si bs4 n'est pas encore installé
+        import re
+        clean = re.sub(r'<[^>]+>', ' ', html)
+        clean = re.sub(r'\s+', ' ', clean)
+        return clean.strip()

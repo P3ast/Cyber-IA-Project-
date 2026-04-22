@@ -13,7 +13,7 @@ from report import generate_report
 
 MODEL_NAME = "mistral"  # Modèle local via Ollama
 
-llm = OllamaLLM(model=MODEL_NAME)
+llm = OllamaLLM(model=MODEL_NAME, format="json")
 
 PROMPT_TEMPLATE = PromptTemplate(
     input_variables=["email_content", "features"],
@@ -51,28 +51,36 @@ class PhishingAgent:
         features = self.extractor.extract(email_data)
 
         # 3. Pré-score ML classique (heuristiques)
-        ml_score = self._ml_score(features)
+        heuristic_score = self._heuristic_score(features)
 
         # 4. Analyse LLM
-        llm_response = self.chain.invoke({
-            "email_content": email_data.get("body", "")[:2000],
-            "features": json.dumps(features, ensure_ascii=False, indent=2)
-        })
+        try:
+            llm_response = self.chain.invoke({
+                "email_content": email_data.get("body", "")[:2000],
+                "features": json.dumps(features, ensure_ascii=False, indent=2)
+            })
+            # 5. Parser la réponse JSON du LLM
+            llm_result = self._parse_llm_response(llm_response)
+        except Exception as e:
+            print(f"[!] Erreur de connexion au LLM ({e}). Fallback sur heuristiques.")
+            llm_result = {
+                "score": heuristic_score,
+                "verdict": "PHISHING" if heuristic_score > 60 else "SUSPECT" if heuristic_score > 30 else "LEGITIME",
+                "raisons": ["Score basé uniquement sur les heuristiques (LLM indisponible)"],
+                "recommandation": "Vérifier le serveur Ollama."
+            }
 
-        # 5. Parser la réponse JSON du LLM
-        llm_result = self._parse_llm_response(llm_response)
-
-        # 6. Score final : moyenne pondérée ML + LLM
-        final_score = int(ml_score * 0.4 + llm_result.get("score", 50) * 0.6)
+        # 6. Score final : moyenne pondérée Heuristiques + LLM
+        final_score = int(heuristic_score * 0.4 + llm_result.get("score", 50) * 0.6)
         llm_result["score"] = final_score
-        llm_result["ml_score"] = ml_score
+        llm_result["heuristic_score"] = heuristic_score
         llm_result["features"] = features
         llm_result["email_subject"] = email_data.get("subject", "N/A")
         llm_result["sender"] = email_data.get("from", "N/A")
 
         return llm_result
 
-    def _ml_score(self, features: dict) -> int:
+    def _heuristic_score(self, features: dict) -> int:
         """Score basé sur les heuristiques sans LLM."""
         score = 0
         if not features.get("spf_pass"):       score += 20
