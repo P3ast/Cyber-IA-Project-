@@ -58,3 +58,79 @@ class FeatureExtractor:
 
         return features
 
+
+    def _extract_urls(self, text: str) -> list:
+        pattern = r'https?://[^\s\'"<>]+'
+        return list(set(re.findall(pattern, text)))
+
+    def _extract_domain(self, email_address: str) -> str:
+        match = re.search(r'@([\w.\-]+)', email_address)
+        return match.group(1).lower() if match else ""
+
+    def _check_spf(self, headers: dict) -> bool:
+        received_spf = headers.get("Received-SPF", "").lower()
+        auth_results = headers.get("Authentication-Results", "").lower()
+        return "pass" in received_spf or "spf=pass" in auth_results
+
+    def _check_dmarc(self, headers: dict) -> bool:
+        auth_results = headers.get("Authentication-Results", "").lower()
+        return "dmarc=pass" in auth_results
+
+    def _reply_to_mismatch(self, email_data: dict) -> bool:
+        from_domain = self._extract_domain(email_data.get("from", ""))
+        reply_domain = self._extract_domain(email_data.get("reply_to", ""))
+        if not reply_domain:
+            return False
+        return from_domain != reply_domain
+
+    def _has_suspicious_urls(self, urls: list) -> bool:
+        for url in urls:
+            parsed = urlparse(url)
+            domain = parsed.netloc.lower()
+            if any(domain.endswith(t) for t in SUSPICIOUS_TLDS):
+                return True
+            if re.match(r'\d+\.\d+\.\d+\.\d+', domain):
+                return True
+            for trusted in TRUSTED_DOMAINS:
+                if trusted in domain and not domain.endswith(trusted):
+                    return True  # Ex: paypal.com.malicious.xyz
+        return False
+
+    def _has_ip_url(self, urls: list) -> bool:
+        for url in urls:
+            host = urlparse(url).netloc.split(":")[0]
+            if re.match(r'^\d{1,3}(\.\d{1,3}){3}$', host):
+                return True
+        return False
+
+    def _url_domain_mismatch(self, urls: list, sender_domain: str) -> bool:
+        if not sender_domain:
+            return False
+        for url in urls:
+            url_domain = urlparse(url).netloc.lower()
+            if sender_domain and sender_domain not in url_domain:
+                return True
+        return False
+
+    def _has_urgent_keywords(self, body: str) -> bool:
+        body_lower = body.lower()
+        return any(kw.lower() in body_lower for kw in URGENT_KEYWORDS)
+
+    def _is_html_only(self, email_data: dict) -> bool:
+        return email_data.get("content_type", "").startswith("text/html")
+
+    def _get_domain_age(self, domain: str) -> int:
+        """Retourne l'âge du domaine en jours. -1 si erreur."""
+        if not domain or domain in TRUSTED_DOMAINS:
+            return 9999  # Domaines connus = très ancien
+        try:
+            w = whois.whois(domain)
+            creation = w.creation_date
+            if isinstance(creation, list):
+                creation = creation[0]
+            if creation:
+                return (datetime.now() - creation).days
+        except Exception:
+            pass
+        return -1
+
