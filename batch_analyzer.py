@@ -40,3 +40,35 @@ def analyze_folder(folder_path: str):
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
     print(f"\n  Rapport complet sauvegardé : {out_file}\n")
+
+
+def _print_summary(results: list):
+    phishing = [r for r in results if r.get("verdict") == "PHISHING"]
+    suspect  = [r for r in results if r.get("verdict") == "SUSPECT"]
+    legit    = [r for r in results if r.get("verdict") == "LEGITIME"]
+    errors   = [r for r in results if "error" in r]
+
+    print(f"\n{'='*50}")
+    print(f"{BOLD}  RÉSUMÉ DE L'ANALYSE{RESET}")
+    print(f"{'='*50}")
+    print(f"  Total analysé : {len(results)}")
+    print(f"  {RED}{BOLD}PHISHING{RESET}  : {len(phishing)}")
+    print(f"  {YELLOW}SUSPECT{RESET}   : {len(suspect)}")
+    print(f"  {GREEN}LEGITIME{RESET}  : {len(legit)}")
+    print(f"  Erreurs    : {len(errors)}")
+    print(f"{'='*50}")
+
+    if phishing:
+        print(f"\n  {RED}Emails suspects à bloquer :{RESET}")
+        for r in phishing:
+            score = r.get("score", "?")
+            print(f"    [{score}/100] {r.get('filename')} — {r.get('sender', '')}")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python batch_analyzer.py <dossier_emails/>")
+        sys.exit(1)
+
+    analyze_folder(sys.argv[1])
+
