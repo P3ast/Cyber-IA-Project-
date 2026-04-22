@@ -1,0 +1,21 @@
+import re
+from urllib.parse import urlparse
+from datetime import datetime
+import whois  # pip install python-whois
+
+
+URGENT_KEYWORDS = [
+    "urgent", "immédiat", "compte bloqué", "vérifiez maintenant",
+    "cliquez ici", "mot de passe expiré", "action requise",
+    "suspended", "verify your account", "click here", "limited time",
+    "vous avez gagné", "félicitations", "winner", "congratulations",
+    "invoice", "facture impayée", "paiement requis"
+]
+
+SUSPICIOUS_TLDS = [".xyz", ".top", ".click", ".gq", ".tk", ".ml", ".cf"]
+
+TRUSTED_DOMAINS = [
+    "google.com", "microsoft.com", "apple.com", "amazon.com",
+    "paypal.com", "facebook.com", "twitter.com", "github.com",
+    "orange.fr", "sfr.fr", "laposte.net", "free.fr"
+]
