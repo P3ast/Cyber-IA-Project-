@@ -13,5 +13,8 @@
     "google.com", "microsoft.com", "apple.com", "amazon.com",
     "paypal.com", "facebook.com", "twitter.com", "github.com",
     "orange.fr", "sfr.fr", "laposte.net", "free.fr"
+  ],
+  "DANGEROUS_EXTENSIONS": [
+    ".exe", ".bat", ".vbs", ".scr", ".js", ".iso", ".apk", ".cmd", ".ps1"
   ]
 }

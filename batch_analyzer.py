@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import logging
 import concurrent.futures
 from datetime import datetime
 from tqdm import tqdm
@@ -15,6 +16,7 @@ def _process_file(filepath: str, filename: str, agent: PhishingAgent) -> dict:
         result["filename"] = filename
         return result
     except Exception as e:
+        logging.error(f"Erreur lors du traitement de {filename}: {e}")
         return {"filename": filename, "error": str(e)}
 
 def analyze_folder(folder_path: str):

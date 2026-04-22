@@ -4,3 +4,4 @@ python-whois==0.8.0
 beautifulsoup4==4.12.3
 dnspython==2.6.1
 tqdm==4.66.4
+Levenshtein==0.25.1

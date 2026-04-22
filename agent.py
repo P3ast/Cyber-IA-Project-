@@ -4,7 +4,14 @@ Combine analyse ML classique + LLM (Ollama)
 """
 
 import json
+import logging
 from langchain_ollama import OllamaLLM
+
+logging.basicConfig(
+    filename='phishing_agent.log', 
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 from langchain.prompts import PromptTemplate
 from feature_extractor import FeatureExtractor
 from email_parser import parse_email
@@ -62,7 +69,7 @@ class PhishingAgent:
             # 5. Parser la réponse JSON du LLM
             llm_result = self._parse_llm_response(llm_response)
         except Exception as e:
-            print(f"[!] Erreur de connexion au LLM ({e}). Fallback sur heuristiques.")
+            logging.error(f"Erreur de connexion au LLM ({e}). Fallback sur heuristiques.")
             llm_result = {
                 "score": heuristic_score,
                 "verdict": "PHISHING" if heuristic_score > 60 else "SUSPECT" if heuristic_score > 30 else "LEGITIME",
@@ -88,6 +95,8 @@ class PhishingAgent:
         if features.get("suspicious_urls"):    score += 25
         if features.get("urgent_keywords"):    score += 15
         if features.get("domain_age_days", 9999) < 30: score += 20
+        if features.get("has_dangerous_attachment"): score += 40
+        if features.get("is_typosquatted"):    score += 30
         return min(score, 100)
 
     def _parse_llm_response(self, response: str) -> dict:

@@ -3,6 +3,8 @@ import json
 import os
 import concurrent.futures
 import dns.resolver
+import functools
+import Levenshtein
 from urllib.parse import urlparse
 from datetime import datetime
 import whois
@@ -17,6 +19,7 @@ except Exception:
 URGENT_KEYWORDS = config.get("URGENT_KEYWORDS", [])
 SUSPICIOUS_TLDS = config.get("SUSPICIOUS_TLDS", [])
 TRUSTED_DOMAINS = config.get("TRUSTED_DOMAINS", [])
+DANGEROUS_EXTENSIONS = config.get("DANGEROUS_EXTENSIONS", [])
 
 class FeatureExtractor:
     def extract(self, email_data: dict) -> dict:
@@ -44,11 +47,13 @@ class FeatureExtractor:
             "urgent_keywords": self._has_urgent_keywords(body),
             "html_only": self._is_html_only(email_data),
             "has_attachment": bool(email_data.get("attachments")),
+            "has_dangerous_attachment": self._has_dangerous_attachment(email_data.get("attachments", [])),
             "attachment_types": email_data.get("attachments", []),
 
             # --- Domaine expéditeur ---
             "domain_age_days": self._get_domain_age(sender_domain),
             "domain_is_trusted": sender_domain in TRUSTED_DOMAINS,
+            "is_typosquatted": self._check_typosquatting(sender_domain),
             "suspicious_tld": any(sender_domain.endswith(t) for t in SUSPICIOUS_TLDS),
 
             "urls_found": urls[:10],
@@ -65,6 +70,7 @@ class FeatureExtractor:
         match = re.search(r'@([\w.\-]+)', email_address)
         return match.group(1).lower() if match else ""
 
+    @functools.lru_cache(maxsize=128)
     def _check_spf(self, headers: dict, sender_domain: str) -> bool:
         received_spf = headers.get("Received-SPF", "").lower()
         auth_results = headers.get("Authentication-Results", "").lower()
@@ -80,6 +86,7 @@ class FeatureExtractor:
                 pass
         return False
 
+    @functools.lru_cache(maxsize=128)
     def _check_dmarc(self, headers: dict, sender_domain: str) -> bool:
         auth_results = headers.get("Authentication-Results", "").lower()
         if "dmarc=pass" in auth_results:
@@ -137,6 +144,27 @@ class FeatureExtractor:
     def _is_html_only(self, email_data: dict) -> bool:
         return email_data.get("content_type", "").startswith("text/html")
 
+    def _has_dangerous_attachment(self, attachments: list) -> bool:
+        for att in attachments:
+            if any(att.lower().endswith(ext) for ext in DANGEROUS_EXTENSIONS):
+                return True
+        return False
+
+    def _check_typosquatting(self, domain: str) -> bool:
+        if not domain or domain in TRUSTED_DOMAINS:
+            return False
+        for trusted in TRUSTED_DOMAINS:
+            try:
+                # Compare la partie principale du domaine (ex: paypal)
+                dom_part = domain.split('.')[0]
+                trust_part = trusted.split('.')[0]
+                if Levenshtein.distance(dom_part, trust_part) == 1:
+                    return True
+            except Exception:
+                pass
+        return False
+
+    @functools.lru_cache(maxsize=128)
     def _get_domain_age(self, domain: str) -> int:
         """Retourne l'âge du domaine en jours avec timeout de 5s. -1 si erreur."""
         if not domain or domain in TRUSTED_DOMAINS:
