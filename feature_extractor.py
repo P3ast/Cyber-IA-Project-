@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urlparse
 from datetime import datetime
-import whois  # pip install python-whois
+import whois
 
 
 URGENT_KEYWORDS = [
